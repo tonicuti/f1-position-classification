@@ -18,6 +18,7 @@ from sklearn.preprocessing import OneHotEncoder, StandardScaler
 
 ID_COLUMNS = ["session_key", "meeting_key", "driver_number", "year"]
 TARGET_COLUMN = "position"
+SAMPLE_WEIGHT_COLUMN = "sample_weight"
 
 # These columns are observed during/after the race. Keep them out by default so
 # the model does not learn the finishing position from race-state proxies.
@@ -191,6 +192,19 @@ def split_by_session(
     )
 
 
+def compute_balanced_sample_weights(y: pd.Series) -> pd.Series:
+    """Compute inverse-frequency class weights for imbalanced targets."""
+    class_counts = y.value_counts()
+    n_samples = len(y)
+    n_classes = class_counts.size
+    weights = y.map(lambda cls: n_samples / (n_classes * class_counts.loc[cls]))
+    return weights.astype(float)
+
+
+def target_distribution(y: pd.Series) -> dict[str, int]:
+    return {str(k): int(v) for k, v in y.value_counts().sort_index().items()}
+
+
 def transform_to_frame(
     preprocessor: ColumnTransformer,
     X: pd.DataFrame,
@@ -217,6 +231,8 @@ def run_preprocessing(config: PreprocessConfig) -> dict[str, object]:
 
     train_processed = transform_to_frame(preprocessor, X_train, y_train, ids_train)
     test_processed = transform_to_frame(preprocessor, X_test, y_test, ids_test)
+    train_processed[SAMPLE_WEIGHT_COLUMN] = compute_balanced_sample_weights(y_train).reset_index(drop=True)
+    test_processed[SAMPLE_WEIGHT_COLUMN] = 1.0
 
     train_path = output_dir / "train_processed.csv"
     test_path = output_dir / "test_processed.csv"
@@ -236,6 +252,10 @@ def run_preprocessing(config: PreprocessConfig) -> dict[str, object]:
         "dropped_target_rows": int(raw_df[config.target_column].isna().sum()),
         "dropped_leakage_columns": [c for c in LEAKAGE_COLUMNS if config.drop_leakage and c in raw_df.columns],
         "id_columns_kept_for_traceability": [c for c in ID_COLUMNS if c in raw_df.columns],
+        "imbalance_strategy": "balanced_sample_weight_train_only",
+        "sample_weight_column": SAMPLE_WEIGHT_COLUMN,
+        "train_target_distribution": target_distribution(y_train),
+        "test_target_distribution": target_distribution(y_test),
         "feature_columns_after_transform": preprocessor.get_feature_names_out().tolist(),
     }
 

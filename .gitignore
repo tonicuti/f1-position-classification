@@ -39,3 +39,6 @@ data/processed_venv_check/
 Thumbs.db
 .vscode/
 .idea/
+
+#Predictions
+reports/ 
