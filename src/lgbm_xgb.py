@@ -20,7 +20,7 @@ ROOT_DIR = Path(__file__).resolve().parents[1]
 TARGET_COLUMN = "position"
 SAMPLE_WEIGHT_COLUMN = "sample_weight"
 RANDOM_STATE = 42
-ENSEMBLE_WEIGHTS = {"lightgbm": 0.6, "xgboost": 0.4}
+ENSEMBLE_WEIGHTS = {"lightgbm": 0.3, "xgboost": 0.7}
 
 
 class CFG:
